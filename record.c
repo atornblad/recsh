@@ -125,8 +125,9 @@ void rputc(int character) {
             case '\n':
                 cursor_left = 0;
                 ++cursor_top;
-                if (cursor_top >= terminal_height) {
+                while (cursor_top >= terminal_height) {
                     /* What to do here!?? */
+                    script_ScrollUp(output, terminal_width, terminal_height, foreground, background);
                     --cursor_top;
                 }
                 script_SetCursorLeft(output, cursor_left);
@@ -145,9 +146,11 @@ void rputc(int character) {
                     cursor_left = 0;
                     cursor_top++;
                     if (cursor_top >= terminal_height) {
-                        /* What to do here!?? */
+                        script_ScrollUp(output, terminal_width, terminal_height, foreground, background);
                         --cursor_top;
                     }
+                    script_SetCursorLeft(output, cursor_left);
+                    script_SetCursorTop(output, cursor_top);
                 }
                 script_Write_char(output, (char)character);
         }
@@ -165,8 +168,8 @@ void rputc(int character) {
                 case 'A':
                     cursor_top -= escape_numbers[0] ? escape_numbers[0] : 1;
                     while (cursor_top < 0) {
+                        script_ScrollDown(output, terminal_width, terminal_height, foreground, background);
                         ++cursor_top;
-                        /* TODO: Scroll! */
                     }
                     script_SetCursorTop(output, cursor_top);
                     break;
@@ -174,7 +177,7 @@ void rputc(int character) {
                 case 'B':
                     cursor_top += escape_numbers[0] ? escape_numbers[0] : 1;
                     while (cursor_top >= terminal_height) {
-                        /* TODO: Scroll! */
+                        script_ScrollUp(output, terminal_width, terminal_height, foreground, background);
                         cursor_top --;
                     }
                     script_SetCursorTop(output, cursor_top);
@@ -187,7 +190,7 @@ void rputc(int character) {
                         cursor_top ++;
                     }
                     while (cursor_top >= terminal_height) {
-                        /* TODO: Scroll! */
+                        script_ScrollUp(output, terminal_width, terminal_height, foreground, background);
                         cursor_top --;
                     }
                     script_SetCursorLeft(output, cursor_left);
@@ -201,7 +204,7 @@ void rputc(int character) {
                         cursor_top --;
                     }
                     while (cursor_top < 0) {
-                        /* TODO: Scroll! */
+                        script_ScrollDown(output, terminal_width, terminal_height, foreground, background);
                         cursor_top ++;
                     }
                     script_SetCursorLeft(output, cursor_left);

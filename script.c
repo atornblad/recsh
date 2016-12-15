@@ -171,3 +171,16 @@ void script_SetBackgroundColor(SCRIPT *script, const int value) {
     flush_script_buffer(script);
     fprintf(script->file, "Set BackgroundColor %s\n", dot_net_console_foreground_colors[value & 15]);
 }
+
+static void script_MoveBufferArea(SCRIPT *script, const int sourceLeft, const int sourceTop, const int sourceWidth, const int sourceHeight, const int targetLeft, const int targetTop, const char fillChar, const int fillForeground, const int fillBackground) {
+    flush_script_buffer(script);
+    fprintf(script->file, "Call MoveBufferArea %d, %d, %d, %d, %d, %d, '%c', %s, %s\n", sourceLeft, sourceTop, sourceWidth, sourceHeight, targetLeft, targetTop, fillChar, dot_net_console_foreground_colors[fillForeground], dot_net_console_foreground_colors[fillBackground]);
+}
+
+void script_ScrollUp(SCRIPT *script, const int width, const int height, const int foreground, const int background) {
+    script_MoveBufferArea(script, 0, 1, width, height - 1, 0, 0, ' ', foreground, background);
+}
+
+void script_ScrollDown(SCRIPT *script, const int width, const int height, const int foreground, const int background) {
+    script_MoveBufferArea(script, 0, 0, width, height - 1, 0, 1, ' ', foreground, background);
+}

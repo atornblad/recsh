@@ -30,5 +30,7 @@ void script_SetWindowTop(SCRIPT *script, const int value);
 void script_SetWindowLeft(SCRIPT *script, const int value);
 void script_SetForegroundColor(SCRIPT *script, const int value);
 void script_SetBackgroundColor(SCRIPT *script, const int value);
+void script_ScrollUp(SCRIPT *script, const int width, const int height, const int foreground, const int background);
+void script_ScrollDown(SCRIPT *script, const int width, const int height, const int foreground, const int background);
 
 #endif

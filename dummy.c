@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
         left = 29 - plen;
         right = left + plen;
         
-        fputs("\x1b[G[", stdout);
+        /*fputs("\x1b[G[", stdout);*/
         for (j = 0; j < i / 2; ++j) {
             if (j >= left && j < right) {
                 fputc(progress[j - left], stdout);
@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
             }
         }
         fputc(']', stdout);
+        fputc('\n', stdout);
         fflush(stdout);
         usleep(ms * 10);
     }
