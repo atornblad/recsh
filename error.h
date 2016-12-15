@@ -4,7 +4,10 @@
 enum ErrorCode {
     SUCCESS,
     OUT_OF_MEMORY,
-    NO_USER_INPUT
+    BAD_SHELL_ARGUMENTS,
+    SCRIPT_FILE_CREATION_FAILED
 };
+
+void show_error(int result);
 
 #endif

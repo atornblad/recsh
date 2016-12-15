@@ -12,8 +12,8 @@ dummy: dummy.o
 dummy.o: dummy.c
 	gcc $(defines) -Wall -Werror -Wpedantic -c dummy.c
 
-recsh: main.o config.o loop.o cleanup.o record.o script.o builtin.o
-	gcc main.o config.o loop.o cleanup.o record.o script.o builtin.o -o recsh
+recsh: main.o config.o loop.o cleanup.o record.o script.o builtin.o error.o
+	gcc main.o config.o loop.o cleanup.o record.o script.o builtin.o error.o -o recsh
 
 main.o: main.c config.h loop.h cleanup.h error.h script.h
 	gcc $(defines) -Wall -Werror -Wpedantic -c main.c
@@ -27,7 +27,7 @@ loop.o: loop.c error.h record.h loop.h script.h builtin.h
 cleanup.o: cleanup.c cleanup.h
 	gcc $(defines) -Wall -Werror -Wpedantic -c cleanup.c
 
-record.o: record.c record.h script.h
+record.o: record.c record.h script.h error.h config.h
 	gcc $(defines) -Wall -Werror -Wpedantic -c record.c
 
 script.o: script.c script.h
@@ -35,6 +35,9 @@ script.o: script.c script.h
 
 builtin.o: builtin.c builtin.h
 	gcc $(defines) -Wall -Werror -Wpedantic -c builtin.c
+
+error.o: error.c error.h
+	gcc $(defines) -Wall -Werror -Wpedantic -c error.c
 
 clean:
 	rm recsh *.o

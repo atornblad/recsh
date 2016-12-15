@@ -9,6 +9,8 @@
 #include "record.h"
 #include "cleanup.h"
 #include "script.h"
+#include "error.h"
+#include "config.h"
 
 static SCRIPT *output;
 static int cursor_left;
@@ -33,7 +35,7 @@ static void cleanup_console() {
     close_script(output, 50);
 }
 
-void setup_console(void) {
+int setup_console(void) {
     struct termios oldt;
     struct termios newt;
     struct winsize ws;
@@ -52,7 +54,11 @@ void setup_console(void) {
     terminal_height = ws.ws_row;
     terminal_width = ws.ws_col;
     
-    output = create_script("recsh.script");
+    output = create_script(config.script_filename);
+    
+    if (output == NULL) {
+        return SCRIPT_FILE_CREATION_FAILED;
+    }
     
     script_SetBufferHeight(output, terminal_height);
     script_SetBufferWidth(output, terminal_width);
@@ -68,6 +74,8 @@ void setup_console(void) {
     
     cursor_left = 0;
     cursor_top = 0;
+    
+    return SUCCESS;
 }
 
 #define escape_numbers_count 16
@@ -82,6 +90,7 @@ void rputc(int character) {
     static int current_escape_number_index = 0;
     static int foreground = 7;
     static int background = 0;
+    static int reverse_video = 0;
     int i;
     
     if (mlast == 0.0) {
@@ -140,6 +149,13 @@ void rputc(int character) {
                 }
                 current_escape_number_index = 0;
                 break;
+            case '\x9b':
+                mode = 2;
+                for (i = 0; i < escape_numbers_count; ++i) {
+                    escape_numbers[i] = 0;
+                }
+                current_escape_number_index = 0;
+                break;
             default:
                 ++cursor_left;
                 if (cursor_left >= terminal_width) {
@@ -157,7 +173,18 @@ void rputc(int character) {
     } else if (mode == 1) {
         if (character == '[') {
             mode = 2;
+        } else if (character >= ' ' && character <= '/') {
+            mode = -1;
+            /* Character set selection sequence - skip 1 character */
+            /* http://www.inwap.com/pdp10/ansicode.txt */
+            /* http://www.xfree86.org/4.5.0/ctlseqs.html */
+        } else if (character >= '0' && character <= '?') {
+            mode = 0;
+            /* Some more graphics selection - skip 0 characters */
+            /* http://www.inwap.com/pdp10/ansicode.txt */
+            /* http://www.xfree86.org/4.5.0/ctlseqs.html */
         } else {
+            fprintf(stderr, "Unknown character after ESC: ascii %d\n", (int)character);
             mode = 0;
         }
     } else if (mode == 2) {
@@ -210,10 +237,15 @@ void rputc(int character) {
                     script_SetCursorLeft(output, cursor_left);
                     script_SetCursorTop(output, cursor_top);
                     break;
-                /* CHA - Cursor Hosizontal Absolute */
+                /* CHA - Cursor Horizontal Absolute */
                 case 'G':
                     cursor_left = (escape_numbers[0] ? escape_numbers[0] : 1) - 1;
                     script_SetCursorLeft(output, cursor_left);
+                    break;
+                /* VPR - Vertical Position Absolute */
+                case 'd':
+                    cursor_top = (escape_numbers[0] ? escape_numbers[0] : 1) - 1;
+                    script_SetCursorLeft(output, cursor_top);
                     break;
                 /* CUP - Cursor Position */
                 case 'H':
@@ -234,6 +266,7 @@ void rputc(int character) {
                     {
                         int oldfg = foreground;
                         int oldbg = background;
+                        int oldrv = reverse_video;
                         for (i = 0; i <= current_escape_number_index; ++i) {
                             int n = escape_numbers[i];
                             #ifdef DEBUG_VERBOSE
@@ -243,37 +276,49 @@ void rputc(int character) {
                                 bold = 0;
                                 foreground = 7;
                                 background = 0;
+                                reverse_video = 0;
                             } else if (n == 1) {
                                 bold = 1;
                                 foreground |= 8;
                                 background |= 8;
-                            } else if (n >= 30 && n <= 37)
-                                foreground = escape_numbers[i] - 30 + (bold * 8);
-                            else if (n == 39)
+                            } else if (n == 7) {
+                                reverse_video = 1;
+                            } else if (n == 0x27) {
+                                reverse_video = 0;
+                            } else if (n >= 0x30 && n <= 0x37)
+                                foreground = escape_numbers[i] - 0x30 + (bold * 8);
+                            else if (n == 0x39)
                                 foreground = 7 + (bold * 8);
-                            else if (n >= 40 && n <= 47)
-                                background = escape_numbers[i] - 40 + (bold * 8);
-                            else if (n == 49)
+                            else if (n >= 0x40 && n <= 0x47)
+                                background = escape_numbers[i] - 0x40;
+                            else if (n == 0x49)
                                 background = 7 + (bold * 8);
-                            else if (n >= 90 && n <= 97)
-                                foreground = escape_numbers[i] - 90 + 8;
-                            else if (n >= 100 && n <= 107)
-                                background = escape_numbers[i] - 100 + 8;
+                            else if (n >= 0x90 && n <= 0x97)
+                                foreground = escape_numbers[i] - 0x90 + 8;
+                            else if (n >= 0x100 && n <= 0x107)
+                                background = escape_numbers[i] - 0x100 + 8;
+                            else {
+                                fprintf(stderr, "Unknown ANSI SGR code: %d\n", n);
+                            }
                         }
-                        if (oldbg != background)
-                            script_SetBackgroundColor(output, background);
-                        if (oldfg != foreground)
-                            script_SetForegroundColor(output, foreground);
+                        if (oldbg != background || oldrv != reverse_video)
+                            script_SetBackgroundColor(output, reverse_video ? foreground : background);
+                        if (oldfg != foreground || oldrv != reverse_video)
+                            script_SetForegroundColor(output, reverse_video ? background : foreground);
                     }
                     break;
+                default:
+                    fprintf(stderr, "Unknown CSI code: '%c' (%d)\n", character, (int)character);
             }
             mode = 0;
-        } else if (isdigit(character)) {
-            escape_numbers[current_escape_number_index] = (escape_numbers[current_escape_number_index] * 10) + (character - '0');
+        } else if (character >= '0' && character <= '?') {
+            escape_numbers[current_escape_number_index] = (escape_numbers[current_escape_number_index] * 16) + (character - '0');
         } else if (character == ';') {
             ++current_escape_number_index;
             if (current_escape_number_index == 16) --current_escape_number_index;
         }
+    } else if (mode < 0) {
+        ++mode;
     }
 }
 
