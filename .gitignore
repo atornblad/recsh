@@ -27,7 +27,12 @@
 *.i*86
 *.x86_64
 *.hex
+dummy
+recsh
 
 # Debug files
 *.dSYM/
 *.su
+
+# Script output files
+*.script
