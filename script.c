@@ -5,6 +5,8 @@
 
 #include "script.h"
 
+static void flush_script_buffer(SCRIPT *script);
+
 static char *dot_net_console_foreground_colors[] = {
     "System.ConsoleColor.Black",
     "System.ConsoleColor.DarkRed",
@@ -25,7 +27,7 @@ static char *dot_net_console_foreground_colors[] = {
 };
 
 SCRIPT *create_script(const char *filename) {
-    SCRIPT *result = (SCRIPT *)malloc(sizeof(SCRIPT));
+    SCRIPT *result = (SCRIPT *)calloc(1, sizeof(SCRIPT));
     if (result == NULL) return NULL;
     result->filename = strdup(filename);
     result->file = fopen(filename, "w");
@@ -44,6 +46,7 @@ SCRIPT *create_script(const char *filename) {
 
 void close_script(SCRIPT *script, int extra_render_frames) {
     if (script == NULL) return;
+    flush_script_buffer(script);
     script_Render(script, extra_render_frames);
     fflush(script->file);
     fclose(script->file);
@@ -52,19 +55,24 @@ void close_script(SCRIPT *script, int extra_render_frames) {
 }
 
 void script_Render(SCRIPT *script, const int frames) {
-    if (frames)
+    if (frames) {
+        flush_script_buffer(script);
         fprintf(script->file, "Render %d\n", frames);
+    }
 }
 
 void script_Clear(SCRIPT *script) {
+    flush_script_buffer(script);
     fprintf(script->file, "Call Clear\n");
 }
 
 void script_ResetColor(SCRIPT *script) {
+    flush_script_buffer(script);
     fprintf(script->file, "Call ResetColor\n");
 }
 
 void script_Write(SCRIPT *script, const char *string) {
+    flush_script_buffer(script);
     fprintf(script->file, "Call Write \"");
     while (*string) {
         switch (*string) {
@@ -88,56 +96,78 @@ void script_Write(SCRIPT *script, const char *string) {
     fprintf(script->file, "\"\n");
 }
 
+static void flush_script_buffer(SCRIPT *script) {
+    if (script->buffer_index > 0) {
+        script->buffer[script->buffer_index] = '\0';
+        script->buffer_index = 0;
+        script_Write(script, script->buffer);
+    }
+}
+
 void script_Write_char(SCRIPT *script, const char character) {
-    char array[2] = { 0, 0 };
-    array[0] = character;
-    script_Write(script, array);
+    if (script->buffer_index == 255) {
+        flush_script_buffer(script);
+    }
+    
+    script->buffer[script->buffer_index++] = character;
 }
 
 void script_SetCursorVisible(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set CursorVisible %s\n", value ? "true" : "false");
 }
 
 void script_SetCursorSize(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set CursorSize %d\n", value);
 }
 
 void script_SetCursorLeft(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set CursorLeft %d\n", value);
 }
 
 void script_SetCursorTop(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set CursorTop %d\n", value);
 }
 
 void script_SetWindowLeft(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set WindowLeft %d\n", value);
 }
 
 void script_SetWindowTop(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set WindowTop %d\n", value);
 }
 
 void script_SetWindowWidth(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set WindowWidth %d\n", value);
 }
 
 void script_SetWindowHeight(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set WindowHeight %d\n", value);
 }
 
 void script_SetBufferWidth(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set BufferWidth %d\n", value);
 }
 
 void script_SetBufferHeight(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set BufferHeight %d\n", value);
 }
 
 void script_SetForegroundColor(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set ForegroundColor %s\n", dot_net_console_foreground_colors[value & 15]);
 }
 
 void script_SetBackgroundColor(SCRIPT *script, const int value) {
+    flush_script_buffer(script);
     fprintf(script->file, "Set BackgroundColor %s\n", dot_net_console_foreground_colors[value & 15]);
 }

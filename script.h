@@ -4,6 +4,8 @@
 struct script_output {
     char *filename;
     FILE *file;
+    char buffer[256];
+    int buffer_index;
 };
 
 typedef struct script_output SCRIPT;
